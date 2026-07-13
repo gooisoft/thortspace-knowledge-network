@@ -1,63 +1,31 @@
 using System.Net;
-using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using Thortspace.Headless;
 
 namespace ThortspaceKnowledgeNetwork;
 
 // thortspace-knowledge-network — build a NETWORK of interlinked Thortspace spheres (with cross-network
-// journeys) from a Wikipedia topic cluster. Builds on the thortspace-api-starter pattern: reference
-// Thortspace.Headless.dll directly and run the engine in-process. See docs/design.md for the full design.
+// journeys) from a Wikipedia topic cluster. Builds on the thortspace-api-starter pattern: the Thortspace
+// headless engine runs IN this process, referenced as the Thortspace.Headless NuGet package.
+// See docs/design.md for the full design.
 //
 //   Run:    dotnet run --project src -- --seed "Philosophy" [--size 12] [--journeys 3]
 //                                       [--dir runs/philosophy] [--stages plan,distill,build,link,stories]
-//   Needs:  Windows, .NET 8 SDK, an installed Thortspace (the SDK DLLs), an LLM key (e.g. GEMINI_API_KEY),
-//           and — for build/link/stories — THORTSPACE_EMAIL/THORTSPACE_PASSWORD (or credentials.json).
+//   Needs:  Windows, .NET 8 SDK (or newer), an LLM key (e.g. GEMINI_API_KEY), and — for
+//           build/link/stories — THORTSPACE_EMAIL/THORTSPACE_PASSWORD (or credentials.json).
 //
 // The pipeline is RESUMABLE: state lives in <dir>/manifest.json; re-running skips completed work.
 internal static class Program
 {
-    private static readonly string SdkDir = ResolveSdkDir();
-
-    // Mirror the csproj's probing: THORTSPACE_SDK_DIR wins, then the standard x64/ARM64 install locations.
-    private static string ResolveSdkDir()
-    {
-        var env = Environment.GetEnvironmentVariable("THORTSPACE_SDK_DIR");
-        if (!string.IsNullOrEmpty(env)) return env;
-        var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        foreach (var install in new[] { "ThortspaceX64", "ThortspaceARM64" })
-        {
-            var dir = Path.Combine(local, install, "current");
-            if (File.Exists(Path.Combine(dir, "Thortspace.Headless.dll"))) return dir;
-        }
-        return Path.Combine(local, "ThortspaceX64", "current");   // best-effort default for the error message
-    }
-
     private static async Task<int> Main(string[] args)
     {
         if (Environment.GetEnvironmentVariable("THORTSPACE_DEBUG") == "1")
             System.Diagnostics.Trace.Listeners.Add(new System.Diagnostics.TextWriterTraceListener(Console.Error));
 
-        // Resolve Thortspace.Headless.dll + dependencies from the SDK folder at runtime (registered BEFORE
-        // any Thortspace type is touched — all engine/LLM work happens inside Run, never inlined here).
-        AppDomain.CurrentDomain.AssemblyResolve += (_, e) =>
-        {
-            var dll = Path.Combine(SdkDir, new AssemblyName(e.Name).Name + ".dll");
-            return File.Exists(dll) ? Assembly.LoadFrom(dll) : null;
-        };
-
         try { return await Run(args); }
-        catch (FileNotFoundException ex)
-        {
-            Console.Error.WriteLine("Could not load the Thortspace SDK: " + ex.Message);
-            Console.Error.WriteLine($"Set THORTSPACE_SDK_DIR to the folder containing Thortspace.Headless.dll (looked in: {SdkDir}).");
-            return 1;
-        }
         catch (Exception ex) { Console.Error.WriteLine("ERROR: " + ex); return 1; }
     }
 
-    [MethodImpl(MethodImplOptions.NoInlining)]
     private static async Task<int> Run(string[] args)
     {
         // ---- configuration ----

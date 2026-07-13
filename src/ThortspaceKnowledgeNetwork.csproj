@@ -2,41 +2,23 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <!-- Windows-only: the Thortspace engine DLL targets net8.0-windows. -->
+    <!-- Windows-only: the Thortspace engine targets net8.0-windows (build with any newer SDK; RollForward
+         lets the exe run on newer runtimes). -->
     <TargetFramework>net8.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>ThortspaceKnowledgeNetwork</RootNamespace>
     <AssemblyName>ThortspaceKnowledgeNetwork</AssemblyName>
     <RollForward>Major</RollForward>
-
-    <!-- Folder holding the Thortspace SDK DLLs (Thortspace.Headless.dll + its dependencies). These ship inside
-         an installed Thortspace app; the standard install locations (x64, then ARM64) are probed automatically.
-         Override with an MSBuild property or an environment variable named ThortspaceSdkDir (dotnet and
-         Visual Studio both pick the environment variable up):
-           dotnet build -p:ThortspaceSdkDir="C:\full\path\to\sdk\dlls"
-         At RUNTIME the program probes the same locations (see Program.cs), overridable via THORTSPACE_SDK_DIR,
-         so the built exe can live anywhere. -->
-    <ThortspaceSdkDir Condition="'$(ThortspaceSdkDir)' == '' AND Exists('$(LOCALAPPDATA)\ThortspaceX64\current\Thortspace.Headless.dll')">$(LOCALAPPDATA)\ThortspaceX64\current</ThortspaceSdkDir>
-    <ThortspaceSdkDir Condition="'$(ThortspaceSdkDir)' == '' AND Exists('$(LOCALAPPDATA)\ThortspaceARM64\current\Thortspace.Headless.dll')">$(LOCALAPPDATA)\ThortspaceARM64\current</ThortspaceSdkDir>
-    <ThortspaceSdkDir Condition="'$(ThortspaceSdkDir)' == ''">$(LOCALAPPDATA)\ThortspaceX64\current</ThortspaceSdkDir>
+    <!-- The engine references WinForms types on some (non-headless) paths; keep the desktop framework
+         available so a stray load can never fail at runtime. -->
+    <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
 
-  <!-- A missing SDK otherwise surfaces as a wall of CS0246 'type Thortspace not found' errors — fail with
-       one actionable message instead. -->
-  <Target Name="CheckThortspaceSdk" BeforeTargets="ResolveAssemblyReferences">
-    <Error Condition="!Exists('$(ThortspaceSdkDir)\Thortspace.Headless.dll')"
-           Text="Thortspace.Headless.dll not found in '$(ThortspaceSdkDir)'. Install the Thortspace app on this machine, or point the ThortspaceSdkDir MSBuild property / environment variable at a folder containing the SDK DLLs (restart Visual Studio after setting an environment variable)." />
-  </Target>
-
   <ItemGroup>
-    <!-- Reference the engine DLL directly — this IS the API (and it also provides the LLM client we use).
-         We do NOT copy it (or its dependency closure) locally; both are resolved from ThortspaceSdkDir at
-         runtime. -->
-    <Reference Include="Thortspace.Headless">
-      <HintPath>$(ThortspaceSdkDir)\Thortspace.Headless.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
+    <!-- The Thortspace headless SDK: the engine DLL + its dependency closure, as a normal NuGet package.
+         Restored from the feed in ../nuget.config (local until the package is published publicly). -->
+    <PackageReference Include="Thortspace.Headless" Version="1.6.726" />
   </ItemGroup>
 
 </Project>

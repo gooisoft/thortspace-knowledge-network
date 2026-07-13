@@ -16,8 +16,8 @@ Pick a seed topic ("Philosophy", "Photosynthesis", "The Beatles"…) and this pi
    links: playback flies from sphere to sphere and regroups thorts mid-sphere as the story turns.
 
 It builds on [thortspace-api-starter](https://github.com/gooisoft/thortspace-api-starter) (start there if
-this is your first contact with the API): the same in-process model — reference `Thortspace.Headless.dll`
-and call the engine directly. No server, no socket.
+this is your first contact with the API): the same in-process model — the Thortspace headless engine runs
+inside your process, consumed as the `Thortspace.Headless` NuGet package. No server, no socket.
 
 ## The architecture in one line
 
@@ -29,8 +29,9 @@ pipeline moving.
 
 ## Requirements
 
-- Windows + [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- An installed [Thortspace](https://www.thortspace.com/main/get-thortspace-app/) (provides the SDK DLLs)
+- Windows + [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) (or newer)
+- The `Thortspace.Headless` NuGet package (until it is published publicly, `nuget.config` points at a
+  local feed — build it with `thortspace/Thortspace.Headless.Package/pack.ps1` from an installed app)
 - An LLM API key — any of Gemini / Claude / OpenAI-compatible (you bring your own key; it is never stored)
 - A Thortspace account for the build stages. Note two account realities:
   - free accounts have a **sphere cap** — a 12-topic cluster needs room;
@@ -89,11 +90,11 @@ A 12-sphere cluster is ~14 model calls at a few thousand tokens each — pennies
 
 Use a dedicated account; the file is plaintext on disk.
 
-### Where the SDK DLLs come from
+### Where the engine comes from
 
-An installed Thortspace app. Default: `%LOCALAPPDATA%\ThortspaceX64\current`; override with
-`THORTSPACE_SDK_DIR` (and `-p:ThortspaceSdkDir=...` at build time). Set `THORTSPACE_DEBUG=1` to route the
-engine's diagnostic trace to stderr.
+The `Thortspace.Headless` NuGet package — the engine DLL plus its dependency closure, restored and copied
+beside your exe like any other package (no installed app needed at build or run time). Set
+`THORTSPACE_DEBUG=1` to route the engine's diagnostic trace to stderr.
 
 ## What to look at when it's done
 
