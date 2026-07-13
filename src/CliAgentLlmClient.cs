@@ -13,7 +13,9 @@ namespace ThortspaceKnowledgeNetwork;
 /// Configure:
 ///   THORTSPACE_LLM_PROVIDER = cli   (aliases: grok, claude, gemini — a sensible default command each)
 ///   THORTSPACE_LLM_CMD      = the command with its print-mode flag, e.g. "grok -p" or "claude -p".
-///                             The prompt is appended as one final argument (quoting handled).
+///                             The prompt is appended as one final argument (quoting handled), so the
+///                             print flag must come LAST when it TAKES the prompt as its value
+///                             (grok's -p/--single, claude's -p/--print) — e.g. "grok -m grok-4.5 -p".
 ///                             Optional — defaults per the provider alias above.
 ///
 /// Trade-offs vs a direct API / local-server provider: slower per call (each call boots the agent),

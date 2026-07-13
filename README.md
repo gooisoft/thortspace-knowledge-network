@@ -90,7 +90,8 @@ subprocess — it rides that tool's own account/subscription, so there's no key 
 $env:THORTSPACE_LLM_PROVIDER = "grok"       # grok | claude | gemini  (uses the tool's print mode)
 # or point at any single-turn print command yourself:
 $env:THORTSPACE_LLM_PROVIDER = "cli"
-$env:THORTSPACE_LLM_CMD      = "grok -p"    # prompt is appended as the final argument
+$env:THORTSPACE_LLM_CMD      = "grok -p"          # print flag LAST (the prompt is appended after it)
+# pin a model:  "grok -m grok-4.5 -p"  ← keep the print flag last, since it takes the prompt as its value
 ```
 
 Slower per call (each call boots the agent) but frontier quality without a key. Batch use is subject to
