@@ -30,8 +30,8 @@ pipeline moving.
 ## Requirements
 
 - Windows + [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) (or newer)
-- The `Thortspace.Headless` NuGet package (until it is published publicly, `nuget.config` points at a
-  local feed — build it with `thortspace/Thortspace.Headless.Package/pack.ps1` from an installed app)
+- The [`Thortspace.Headless` NuGet package](https://www.nuget.org/packages/Thortspace.Headless) — restores
+  automatically from nuget.org; no installed Thortspace app needed
 - An LLM API key — any of Gemini / Claude / OpenAI-compatible (you bring your own key; it is never stored)
 - A Thortspace account for the build stages. Note two account realities:
   - free accounts have a **sphere cap** — a 12-topic cluster needs room;
