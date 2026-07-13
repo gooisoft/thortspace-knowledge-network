@@ -10,10 +10,15 @@ namespace ThortspaceKnowledgeNetwork;
 /// before anything touches a sphere.
 ///
 /// The client itself comes from Thortspace.Headless — the same provider-agnostic <see cref="ILlmClient"/>
-/// the app's AI features use (Gemini / Claude / any OpenAI-compatible endpoint). Bring your own key:
-///   THORTSPACE_LLM_PROVIDER   (default "google")
-///   THORTSPACE_LLM_KEY        (or GEMINI_API_KEY / GOOGLE_API_KEY / ANTHROPIC_API_KEY / OPENAI_API_KEY)
-///   THORTSPACE_LLM_MODEL      (optional; the factory picks a sensible default per provider)
+/// the app's AI features use (Gemini / Claude / any OpenAI-compatible endpoint — which includes LOCAL
+/// model servers like Ollama or LM Studio, no API key at all). Configure via environment:
+///   THORTSPACE_LLM_PROVIDER   "google" (default) | "anthropic" | "openai" | "xai" |
+///                             "ollama"/"local" (localhost, keyless) | "openai-compatible"
+///   THORTSPACE_LLM_KEY        cloud providers only (or GEMINI_API_KEY / GOOGLE_API_KEY /
+///                             ANTHROPIC_API_KEY / OPENAI_API_KEY)
+///   THORTSPACE_LLM_MODEL      optional for cloud providers; REQUIRED for ollama/local (e.g. "llama3.1")
+///   THORTSPACE_LLM_BASEURL    openai-compatible/ollama endpoint override; for ollama defaults to
+///                             OLLAMA_API_BASE (or http://localhost:11434) + "/v1"
 /// </summary>
 public sealed class LlmJson
 {
@@ -24,14 +29,49 @@ public sealed class LlmJson
 
     public static LlmJson? CreateFromEnvironment()
     {
-        var provider = Environment.GetEnvironmentVariable("THORTSPACE_LLM_PROVIDER") ?? "google";
+        var provider = (Environment.GetEnvironmentVariable("THORTSPACE_LLM_PROVIDER") ?? "google")
+            .Trim().ToLowerInvariant();
+        var model = Environment.GetEnvironmentVariable("THORTSPACE_LLM_MODEL");
+        var baseUrl = Environment.GetEnvironmentVariable("THORTSPACE_LLM_BASEURL");
+
+        // Local CLI agent (grok / claude / gemini …): drive a logged-in agent binary as a subprocess —
+        // keyless, rides the agent's own account/subscription. No API key, no local server.
+        if (provider is "cli" or "grok" or "claude" or "gemini")
+        {
+            var cmd = Environment.GetEnvironmentVariable("THORTSPACE_LLM_CMD")
+                      ?? CliAgentLlmClient.DefaultCommandFor(provider);
+            if (string.IsNullOrWhiteSpace(cmd))
+            {
+                Console.Error.WriteLine("Provider 'cli' needs THORTSPACE_LLM_CMD (e.g. \"grok -p\" or \"claude -p\").");
+                return null;
+            }
+            return new LlmJson(new CliAgentLlmClient(cmd));
+        }
+
+        // Local model server (Ollama / LM Studio / …): an OpenAI-compatible endpoint on localhost —
+        // keyless (the placeholder key satisfies the factory; local servers ignore auth).
+        if (provider is "ollama" or "local" or "openai-compatible")
+        {
+            if (provider is "ollama" or "local")
+            {
+                baseUrl ??= Environment.GetEnvironmentVariable("OLLAMA_API_BASE") ?? "http://localhost:11434";
+                if (!baseUrl.TrimEnd('/').EndsWith("/v1")) baseUrl = baseUrl.TrimEnd('/') + "/v1";
+            }
+            if (string.IsNullOrWhiteSpace(baseUrl) || string.IsNullOrWhiteSpace(model))
+            {
+                Console.Error.WriteLine($"Provider '{provider}' needs THORTSPACE_LLM_MODEL" +
+                    (provider == "openai-compatible" ? " and THORTSPACE_LLM_BASEURL." : " (e.g. a model from `ollama list`)."));
+                return null;
+            }
+            return new LlmJson(LlmClientFactory.Create("openai-compatible", "local", model, baseUrl));
+        }
+
         var key = Environment.GetEnvironmentVariable("THORTSPACE_LLM_KEY")
                   ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY")
                   ?? Environment.GetEnvironmentVariable("GOOGLE_API_KEY")
                   ?? Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY")
                   ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY");
         if (string.IsNullOrWhiteSpace(key)) return null;
-        var model = Environment.GetEnvironmentVariable("THORTSPACE_LLM_MODEL");
         return new LlmJson(LlmClientFactory.Create(provider, key, model));
     }
 

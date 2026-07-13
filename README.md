@@ -32,7 +32,8 @@ pipeline moving.
 - Windows + [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) (or newer)
 - The [`Thortspace.Headless` NuGet package](https://www.nuget.org/packages/Thortspace.Headless) — restores
   automatically from nuget.org; no installed Thortspace app needed
-- An LLM API key — any of Gemini / Claude / OpenAI-compatible (you bring your own key; it is never stored)
+- An LLM — a cloud API key (Gemini / Claude / OpenAI), **or** a local CLI agent (grok / claude / gemini,
+  no key), **or** a local model server (Ollama / LM Studio). See [Choosing the model](#choosing-the-model--three-ways-no-lock-in).
 - A Thortspace account for the build stages. Note two account realities:
   - free accounts have a **sphere cap** — a 12-topic cluster needs room;
   - **journeys cloud-sync only on a sync-enabled account** (the same gate as private spheres). The
@@ -64,21 +65,47 @@ The run prints a `https://thort.space/<id>` link per sphere when it finishes.
 | `--stages` | all | Any of `plan,distill,build,link,stories` — run a subset. |
 
 Every stage is **resumable**: state lives in `runs/<seed>/manifest.json`, and re-running skips whatever is
-already done. `plan` and `distill` need only the LLM key — you can inspect the distillations in the
+already done. `plan` and `distill` need only the LLM (see below) — you can inspect the distillations in the
 manifest before anything touches your account.
 
-### Choosing the model
+### Choosing the model — three ways, no lock-in
 
-The LLM client comes from `Thortspace.Headless.dll` itself (the same provider-agnostic client the app's
-AI features use):
+The LLM is called as a stateless function; you pick where it runs with `THORTSPACE_LLM_PROVIDER`. A
+12-sphere cluster is ~14 calls at a few thousand tokens each.
+
+**1. A cloud API (best quality).** The provider-agnostic client from `Thortspace.Headless` — bring a key:
 
 ```powershell
-$env:THORTSPACE_LLM_PROVIDER = "google"     # google | anthropic | openai | xai | openai-compatible
+$env:THORTSPACE_LLM_PROVIDER = "google"     # google | anthropic | openai | xai
 $env:THORTSPACE_LLM_KEY      = "..."        # or GEMINI_API_KEY / ANTHROPIC_API_KEY / OPENAI_API_KEY
 $env:THORTSPACE_LLM_MODEL    = "gemini-flash-latest"   # optional
 ```
 
-A 12-sphere cluster is ~14 model calls at a few thousand tokens each — pennies on a flash-class model.
+Pennies on a flash-class model.
+
+**2. A local CLI agent (no API key).** Drive a logged-in agent CLI (grok, claude, gemini) as a
+subprocess — it rides that tool's own account/subscription, so there's no key to manage:
+
+```powershell
+$env:THORTSPACE_LLM_PROVIDER = "grok"       # grok | claude | gemini  (uses the tool's print mode)
+# or point at any single-turn print command yourself:
+$env:THORTSPACE_LLM_PROVIDER = "cli"
+$env:THORTSPACE_LLM_CMD      = "grok -p"    # prompt is appended as the final argument
+```
+
+Slower per call (each call boots the agent) but frontier quality without a key. Batch use is subject to
+that tool's usage terms.
+
+**3. A local model server (free, offline).** Any OpenAI-compatible endpoint — Ollama, LM Studio, …:
+
+```powershell
+$env:THORTSPACE_LLM_PROVIDER = "ollama"     # uses OLLAMA_API_BASE or http://localhost:11434
+$env:THORTSPACE_LLM_MODEL    = "llama3.1"   # required — a model you've pulled
+# generic: THORTSPACE_LLM_PROVIDER=openai-compatible + THORTSPACE_LLM_BASEURL=http://host:port/v1
+```
+
+Note: the engine's HTTP client times out at 45s, so a large local model on modest hardware may not keep
+up — prefer a small/fast local model here, or use the CLI-agent path (option 2) which has no such limit.
 
 ### Credentials file (instead of env vars)
 
