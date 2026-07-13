@@ -15,9 +15,20 @@ Pick a seed topic ("Philosophy", "Photosynthesis", "The Beatles"…) and this pi
 5. **writes journeys** — a few *stories across the whole network*, each a validated route along the
    links: playback flies from sphere to sphere and regroups thorts mid-sphere as the story turns.
 
-It builds on [thortspace-api-starter](https://github.com/gooisoft/thortspace-api-starter) (start there if
-this is your first contact with the API): the same in-process model — the Thortspace headless engine runs
-inside your process, consumed as the `Thortspace.Headless` NuGet package. No server, no socket.
+It builds on [thortspace-api-starter](https://github.com/gooisoft/thortspace-api-starter): the same
+in-process model — the Thortspace headless engine runs inside your process, consumed as the
+`Thortspace.Headless` NuGet package. No server, no socket.
+
+### Two examples, two levels
+
+| | [thortspace-api-starter](https://github.com/gooisoft/thortspace-api-starter) | **thortspace-knowledge-network** (this repo) |
+|---|---|---|
+| Scope | A minimal "hello world" — one program that tours the API | A bigger, real pipeline — many spheres, a graph, journeys |
+| Needs | Just a Thortspace login | A login **and** an LLM: a cloud API key **or** a local CLI agent (grok/claude) **or** a local model server (Ollama) |
+| Start here if | You're new to the API | You've seen the basics and want a substantial example |
+
+**New to the Thortspace API? Start with the starter** — it's the simplest possible way in. Come back here
+when you want to see the engine driven at scale, with an LLM in the loop.
 
 ## The architecture in one line
 
