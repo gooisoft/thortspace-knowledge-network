@@ -18,9 +18,21 @@ namespace ThortspaceKnowledgeNetwork;
 // The pipeline is RESUMABLE: state lives in <dir>/manifest.json; re-running skips completed work.
 internal static class Program
 {
-    private static readonly string SdkDir =
-        Environment.GetEnvironmentVariable("THORTSPACE_SDK_DIR")
-        ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ThortspaceX64", "current");
+    private static readonly string SdkDir = ResolveSdkDir();
+
+    // Mirror the csproj's probing: THORTSPACE_SDK_DIR wins, then the standard x64/ARM64 install locations.
+    private static string ResolveSdkDir()
+    {
+        var env = Environment.GetEnvironmentVariable("THORTSPACE_SDK_DIR");
+        if (!string.IsNullOrEmpty(env)) return env;
+        var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        foreach (var install in new[] { "ThortspaceX64", "ThortspaceARM64" })
+        {
+            var dir = Path.Combine(local, install, "current");
+            if (File.Exists(Path.Combine(dir, "Thortspace.Headless.dll"))) return dir;
+        }
+        return Path.Combine(local, "ThortspaceX64", "current");   // best-effort default for the error message
+    }
 
     private static async Task<int> Main(string[] args)
     {
