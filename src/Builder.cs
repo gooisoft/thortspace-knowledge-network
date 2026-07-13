@@ -32,6 +32,13 @@ public static class Builder
         built.PrimaryArrangementId = snap.RootElement.GetProperty("arrangementId").GetString()!;
         engine.RenameArrangement(Guid.Parse(built.PrimaryArrangementId), d.PrimaryAxis);
 
+        // A freshly-created sphere ships with a default group of ~7 blank thorts (a starting-point for the
+        // user). Left as-is it takes a layout slot (displacing a real group) and — having an empty NAME —
+        // would be swept into the alternative-arrangement fork below. We KEEP it (users can fill it in) but
+        // (a) exclude it from the alt fork and (b) tuck it at the bottom pole in BOTH arrangements, out of
+        // the way of the generated content.
+        var defaultGroupIds = SnapGroups(engine).Select(g => g.id).ToList();
+
         // ---- groups + thorts (first thort makes the group; the rest join it on the hex lattice) ----
         foreach (var g in d.Groups)
         {
@@ -74,6 +81,7 @@ public static class Builder
 
         // ---- layout: cluster related groups, untangle the paths ----
         engine.Arrange(null, null, null, reduceCrossings: true);
+        TuckAway(engine, defaultGroupIds);                                      // blank default group → bottom pole
 
         // ---- the ALTERNATIVE arrangement: fork, rename the forked groups to the new axis, regroup ----
         if (d.Alternative is { } alt)
@@ -84,8 +92,10 @@ public static class Builder
             built.AltAxis = alt.Axis;
 
             // The fork carries the primary groups (same names, NEW per-arrangement group objects). Reuse
-            // the forked CONTENT groups in order as the alt groups; "Source" keeps its identity in both.
-            var forked = SnapGroups(engine).Where(g => g.name != "Source").ToList();
+            // the forked CONTENT groups in order as the alt groups; "Source" AND the blank default group keep
+            // their identity in both arrangements and must NOT be consumed as alt content groups.
+            var forked = SnapGroups(engine)
+                .Where(g => g.name != "Source" && !defaultGroupIds.Contains(g.id)).ToList();
             for (var i = 0; i < alt.Groups.Count && i < forked.Count; i++)
             {
                 var target = forked[i];
@@ -97,6 +107,7 @@ public static class Builder
             }
             foreach (var (name, id) in built.AltGroups) engine.ArrangeGroup(Guid.Parse(id), "hex");
             engine.Arrange(null, null, null, reduceCrossings: true);
+            TuckAway(engine, defaultGroupIds);                                  // also tuck it in the alt arrangement
             engine.SwitchArrangement(Guid.Parse(built.PrimaryArrangementId));   // leave the sphere on primary
         }
 
@@ -111,6 +122,14 @@ public static class Builder
 
     private static JsonDocument Snap(IAgentEngine engine) =>
         JsonDocument.Parse(JsonSerializer.Serialize(engine.Snapshot()));
+
+    // Move the given groups low-and-to-the-back of the CURRENT arrangement, out of the content's way.
+    // NOT the exact bottom pole (0,-1,0): that is anti-parallel to the up-vector (0,1,0) and the group's
+    // up-vector solve then yields NaN (BadThoughtsException). A low off-axis direction avoids the singularity.
+    private static void TuckAway(IAgentEngine engine, IEnumerable<string> groupIds)
+    {
+        foreach (var id in groupIds) engine.MoveGroup(Guid.Parse(id), 0f, -0.82f, 0.57f);
+    }
 
     private static List<(string id, string name)> SnapGroups(IAgentEngine engine)
     {

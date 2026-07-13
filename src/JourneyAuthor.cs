@@ -29,11 +29,11 @@ public static class JourneyAuthor
             {
                 // Bridge on the sphere we are leaving, THEN move to the next sphere of the story.
                 var next = manifest.Built[step.Topic];
-                engine.AddTripStep(tripId,
+                if (engine.AddTripStep(tripId,
                     step.Transition ?? $"The story continues on \"{step.Topic}\" — one of this sphere's linked neighbours.",
                     arrangementId: null, focusGroupId: null, focusThortId: null,
-                    name: $"To {step.Topic}", framing: "neighbourhood", networkSphereId: next.LocalId);
-                stepCount++;
+                    name: $"To {step.Topic}", framing: "neighbourhood", networkSphereId: next.LocalId))
+                    stepCount++;
                 await engine.OpenSphereAsync(next.LocalId);
                 openTopic = step.Topic;
             }
@@ -47,13 +47,13 @@ public static class JourneyAuthor
                 : null;
             var focusThortId = step.FocusThort != null ? built.Thorts.GetValueOrDefault(step.FocusThort) : null;
 
-            engine.AddTripStep(tripId, step.Narration,
+            if (engine.AddTripStep(tripId, step.Narration,
                 arrangementId: arrangementId,
                 focusGroupId: focusGroupId,
                 focusThortId: focusThortId,
                 name: step.Title,
-                framing: step.Framing ?? (focusGroupId != null ? "group" : "wide"));
-            stepCount++;
+                framing: step.Framing ?? (focusGroupId != null ? "group" : "wide")))
+                stepCount++;
         }
 
         engine.SetTripPublic(tripId, true);

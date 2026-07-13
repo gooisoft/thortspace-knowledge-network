@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Thortspace.Headless;
 
@@ -143,6 +144,22 @@ internal static class Program
                                   $"{story.Steps.Select(s => s.Topic).Distinct().Count()} spheres)…");
                 manifest.Journeys.Add(await JourneyAuthor.AuthorAsync(engine!, manifest, story));
                 manifest.Save(runDir);
+            }
+
+            // Drain the trip-sync queue before we exit — headless has no connectivity-retry timer, so without
+            // this the authored steps sit un-pushed and the journeys persist with their NAME but ZERO steps.
+            if (manifest.Journeys.Count > 0)
+            {
+                Console.Write("  flushing journeys to the cloud… ");
+                var drained = await engine!.FlushTripsAsync();
+                Console.WriteLine(drained ? "done." : "TIMED OUT (some steps may not have persisted).");
+                // Read back the CLOUD-persisted step count per journey (via a fresh trips list).
+                foreach (var j in manifest.Journeys)
+                {
+                    using var t = JsonDocument.Parse(JsonSerializer.Serialize(engine.GetTrip(j.TripId)));
+                    var persisted = t.RootElement.TryGetProperty("steps", out var st) ? st.GetArrayLength() : 0;
+                    Console.WriteLine($"    \"{j.Name}\": authored {j.StepCount} / persisted {persisted}");
+                }
             }
         }
 
