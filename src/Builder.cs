@@ -32,6 +32,10 @@ public static class Builder
         built.PrimaryArrangementId = snap.RootElement.GetProperty("arrangementId").GetString()!;
         engine.RenameArrangement(Guid.Parse(built.PrimaryArrangementId), d.PrimaryAxis);
 
+        // Give each sphere its OWN colour (deterministic from its title) so the network isn't all grey.
+        var (bd, s1, s2) = ThemeForTitle(d.Title);
+        engine.SetSphereTheme(bd.r, bd.g, bd.b, s1.r, s1.g, s1.b, s2.r, s2.g, s2.b);
+
         // A freshly-created sphere ships with a default group of ~7 blank thorts (a starting-point for the
         // user). Left as-is it takes a layout slot (displacing a real group) and — having an empty NAME —
         // would be swept into the alternative-arrangement fork below. We KEEP it (users can fill it in) but
@@ -122,6 +126,31 @@ public static class Builder
 
     private static JsonDocument Snap(IAgentEngine engine) =>
         JsonDocument.Parse(JsonSerializer.Serialize(engine.Snapshot()));
+
+    // A distinct colour theme per sphere, deterministic from its title: a deep backdrop + a two-tone
+    // sphere surface, all on one hue. Dark-ish so the pastel category colours and dark text still read.
+    private static ((int r, int g, int b) backdrop, (int r, int g, int b) s1, (int r, int g, int b) s2)
+        ThemeForTitle(string title)
+    {
+        int hash = 0;
+        foreach (var ch in title) hash = unchecked(hash * 31 + ch);
+        double hue = (((hash % 360) + 360) % 360);
+        return (Hsv(hue, 0.55, 0.22), Hsv(hue, 0.60, 0.46), Hsv(hue, 0.50, 0.72));
+    }
+
+    private static (int r, int g, int b) Hsv(double h, double s, double v)
+    {
+        h = ((h % 360) + 360) % 360;
+        double c = v * s, x = c * (1 - Math.Abs((h / 60.0) % 2 - 1)), m = v - c;
+        double r = 0, g = 0, b = 0;
+        if (h < 60) { r = c; g = x; }
+        else if (h < 120) { r = x; g = c; }
+        else if (h < 180) { g = c; b = x; }
+        else if (h < 240) { g = x; b = c; }
+        else if (h < 300) { r = x; b = c; }
+        else { r = c; b = x; }
+        return ((int)Math.Round((r + m) * 255), (int)Math.Round((g + m) * 255), (int)Math.Round((b + m) * 255));
+    }
 
     // Move the given groups low-and-to-the-back of the CURRENT arrangement, out of the content's way.
     // NOT the exact bottom pole (0,-1,0): that is anti-parallel to the up-vector (0,1,0) and the group's

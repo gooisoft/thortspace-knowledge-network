@@ -38,5 +38,25 @@ public static class Linker
             await engine.SaveAsync();
             manifest.Save(runDir);                                              // resumable after every sphere
         }
+
+        // ---- link-layout pass: spread every sphere's neighbours around it, in BOTH arrangements ----
+        // LinkSphere only positions the link on the sphere that was OPEN at link time, so a sphere that
+        // was never the open one shows all its neighbours piled at the default spot. Open each sphere and
+        // distribute its links evenly, once per arrangement.
+        Console.WriteLine("  arranging links…");
+        foreach (var (title, b) in manifest.Built)
+        {
+            await engine.OpenSphereAsync(b.LocalId);
+            engine.SwitchArrangement(Guid.Parse(b.PrimaryArrangementId));
+            var n = engine.ArrangeLinks();
+            if (b.AltArrangementId != null)
+            {
+                engine.SwitchArrangement(Guid.Parse(b.AltArrangementId));
+                engine.ArrangeLinks();
+                engine.SwitchArrangement(Guid.Parse(b.PrimaryArrangementId));   // leave on primary
+            }
+            await engine.SaveAsync();
+            if (n > 0) Console.WriteLine($"    {title}: {n} link(s) spread");
+        }
     }
 }
