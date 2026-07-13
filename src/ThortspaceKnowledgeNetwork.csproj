@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- Windows-only: the Thortspace engine DLL targets net8.0-windows. -->
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>ThortspaceKnowledgeNetwork</RootNamespace>
+    <AssemblyName>ThortspaceKnowledgeNetwork</AssemblyName>
+    <RollForward>Major</RollForward>
+
+    <!-- Folder holding the Thortspace SDK DLLs (Thortspace.Headless.dll + its dependencies). These ship inside
+         an installed Thortspace app. The default is a standard Windows install location; override on the CLI:
+           dotnet build -p:ThortspaceSdkDir="C:\full\path\to\sdk\dlls"
+         At RUNTIME the program resolves the dependency DLLs from the same folder (see Program.cs) via the
+         THORTSPACE_SDK_DIR environment variable, so the built exe can live anywhere. -->
+    <ThortspaceSdkDir Condition="'$(ThortspaceSdkDir)' == ''">$(LOCALAPPDATA)\ThortspaceX64\current</ThortspaceSdkDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Reference the engine DLL directly — this IS the API (and it also provides the LLM client we use).
+         We do NOT copy it (or its dependency closure) locally; both are resolved from ThortspaceSdkDir at
+         runtime. -->
+    <Reference Include="Thortspace.Headless">
+      <HintPath>$(ThortspaceSdkDir)\Thortspace.Headless.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>

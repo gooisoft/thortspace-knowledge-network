@@ -1,0 +1,19 @@
+# .NET build output
+bin/
+obj/
+
+# IDE
+.vs/
+.idea/
+*.user
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Credentials — NEVER commit. Read at runtime; keep them on your machine only.
+credentials.json
+*.credentials.json
+
+# Run state (manifests + page caches are per-machine working data)
+runs/
