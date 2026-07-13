@@ -127,15 +127,19 @@ public static class Builder
     private static JsonDocument Snap(IAgentEngine engine) =>
         JsonDocument.Parse(JsonSerializer.Serialize(engine.Snapshot()));
 
-    // A distinct colour theme per sphere, deterministic from its title: a deep backdrop + a two-tone
-    // sphere surface, all on one hue. Dark-ish so the pastel category colours and dark text still read.
+    // A distinct colour theme per sphere, deterministic from its title. LIGHT + pastel (a dark backdrop
+    // made everything gloomy): a soft airy backdrop and two DIFFERENT pastel shades for the sphere surface
+    // (a slight hue shift + value drop between them so the two-tone gradient reads without being garish).
     private static ((int r, int g, int b) backdrop, (int r, int g, int b) s1, (int r, int g, int b) s2)
         ThemeForTitle(string title)
     {
         int hash = 0;
         foreach (var ch in title) hash = unchecked(hash * 31 + ch);
         double hue = (((hash % 360) + 360) % 360);
-        return (Hsv(hue, 0.55, 0.22), Hsv(hue, 0.60, 0.46), Hsv(hue, 0.50, 0.72));
+        return (
+            Hsv(hue, 0.14, 0.90),          // backdrop: pale, airy — light, never dark
+            Hsv(hue, 0.34, 0.88),          // sphere surface 1: pastel
+            Hsv(hue + 18, 0.28, 0.76));    // sphere surface 2: a distinct, slightly deeper pastel
     }
 
     private static (int r, int g, int b) Hsv(double h, double s, double v)
