@@ -18,10 +18,11 @@
   <ItemGroup>
     <!-- The Thortspace headless SDK: the engine DLL + its dependency closure, as a normal NuGet package.
          Restored from the feed in ../nuget.config (local until the package is published publicly). -->
-    <PackageReference Include="Thortspace.Headless" Version="1.6.726.4" />
+    <PackageReference Include="Thortspace.Headless" Version="1.6.727" />
   </ItemGroup>
 
 </Project>
+
 
 
 
