@@ -91,4 +91,107 @@ public static class Curator
 
     private static bool LinksTo(IReadOnlyDictionary<string, WikiPage> pages, string from, string to) =>
         pages.TryGetValue(from, out var p) && p.Links.Any(l => WikipediaClient.SameTitle(l, to));
+
+    public const int MaxLinksPerSphere = 5;
+
+    /// <summary>LLM call 1b — PRUNE the near-complete candidate graph down to the most SIGNIFICANT links so the
+    /// network reads as a structure, not a morass. The model ranks each sphere's neighbours; we keep an edge if
+    /// EITHER endpoint ranked the other in its top-N (≈N links per sphere). Code then guarantees the result is
+    /// still a single CONNECTED graph (no orphan sphere, one component), preferring MUTUAL links (both articles
+    /// reference each other) when it has to add one back.</summary>
+    public static async Task<List<Edge>> SelectSignificantAsync(
+        LlmJson llm, List<PlannedTopic> topics, List<Edge> candidates,
+        IReadOnlyDictionary<string, WikiPage> pages, int maxPerSphere)
+    {
+        if (candidates.Count == 0) return candidates;
+        string Other(Edge e, string t) => WikipediaClient.SameTitle(e.A, t) ? e.B : e.A;
+        List<string> NeighboursOf(string t) => candidates.Where(e => e.Touches(t)).Select(e => Other(e, t))
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        bool Mutual(string a, string b) => LinksTo(pages, a, b) && LinksTo(pages, b, a);
+
+        var system =
+            "You rank the connections in a network of encyclopedia-topic spheres. For EACH topic, from its " +
+            "candidate neighbours choose AT MOST " + maxPerSphere + " that are the MOST SIGNIFICANT — the " +
+            "connections that best convey how the subject relates to the others (defining, foundational or " +
+            "strongly explanatory relationships), NOT incidental mentions. Reply with ONLY JSON, no prose:\n" +
+            "{ \"links\": [ { \"topic\": \"<verbatim title>\", \"neighbours\": [ \"<verbatim neighbour title>\" ] } ] }";
+        var user = new StringBuilder().AppendLine("Topics and their candidate neighbours:");
+        foreach (var t in topics)
+            user.AppendLine($"- {t.Title}: {string.Join(", ", NeighboursOf(t.Title))}");
+
+        var kept = new HashSet<string>(StringComparer.Ordinal);   // undirected keys "ab" (sorted)
+        string Key(string a, string b) => string.CompareOrdinal(a, b) <= 0 ? a + "" + b : b + "" + a;
+        Edge Cand(string a, string b) => candidates.FirstOrDefault(e => e.Is(a, b));
+
+        try
+        {
+            using var doc = await llm.CompleteJsonAsync(system, user.ToString());
+            if (doc != null)
+                foreach (var l in LlmJson.Arr(doc.RootElement, "links"))
+                {
+                    var topic = topics.FirstOrDefault(t => WikipediaClient.SameTitle(t.Title, LlmJson.Str(l, "topic")))?.Title;
+                    if (topic == null) continue;
+                    var picked = 0;
+                    foreach (var n in LlmJson.Arr(l, "neighbours"))
+                    {
+                        if (picked >= maxPerSphere) break;
+                        var nb = topics.FirstOrDefault(t => WikipediaClient.SameTitle(t.Title, n.GetString() ?? ""))?.Title;
+                        if (nb == null || Cand(topic, nb) == null) continue;   // must be a real candidate edge
+                        kept.Add(Key(topic, nb)); picked++;
+                    }
+                }
+        }
+        catch { /* fall through to the structural fallback below */ }
+
+        // Build the pruned edge list from what survived.
+        var pruned = candidates.Where(e => kept.Contains(Key(e.A, e.B))).ToList();
+        if (pruned.Count == 0) pruned = candidates.ToList();   // ranking produced nothing usable → keep all
+
+        // ---- connectivity guards (code disposes) ----
+        // (a) no orphan sphere — every topic keeps at least its strongest candidate (mutual first).
+        foreach (var t in topics)
+        {
+            if (pruned.Any(e => e.Touches(t.Title))) continue;
+            var best = candidates.Where(e => e.Touches(t.Title))
+                .OrderByDescending(e => Mutual(e.A, e.B) ? 1 : 0).FirstOrDefault();
+            if (best != null && pruned.All(e => !e.Is(best.A, best.B))) pruned.Add(best);
+        }
+        // (b) single component — bridge separate components with the strongest candidate edge between them.
+        var comp = Components(topics.Select(t => t.Title).ToList(), pruned);
+        while (comp.Count > 1)
+        {
+            var c0 = comp[0];
+            Edge bridge = candidates
+                .Where(e => (c0.Contains(e.A) && !c0.Contains(e.B)) || (c0.Contains(e.B) && !c0.Contains(e.A)))
+                .OrderByDescending(e => Mutual(e.A, e.B) ? 1 : 0).FirstOrDefault();
+            if (bridge == null) break;                          // components genuinely unreachable — leave as is
+            if (pruned.All(e => !e.Is(bridge.A, bridge.B))) pruned.Add(bridge);
+            comp = Components(topics.Select(t => t.Title).ToList(), pruned);
+        }
+        return pruned;
+    }
+
+    // Connected components over the given nodes + edges (title equality via SameTitle).
+    private static List<HashSet<string>> Components(List<string> nodes, List<Edge> edges)
+    {
+        var comps = new List<HashSet<string>>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var start in nodes)
+        {
+            if (!seen.Add(start)) continue;
+            var comp = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { start };
+            var stack = new Stack<string>(); stack.Push(start);
+            while (stack.Count > 0)
+            {
+                var cur = stack.Pop();
+                foreach (var e in edges.Where(e => e.Touches(cur)))
+                {
+                    var other = WikipediaClient.SameTitle(e.A, cur) ? e.B : e.A;
+                    if (nodes.Any(n => WikipediaClient.SameTitle(n, other)) && comp.Add(other)) { seen.Add(other); stack.Push(other); }
+                }
+            }
+            comps.Add(comp);
+        }
+        return comps;
+    }
 }

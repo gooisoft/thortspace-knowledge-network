@@ -63,12 +63,15 @@ internal static class Program
             Console.WriteLine($"  curated {topics.Count} topics: {string.Join(", ", topics.Select(t => t.Title))}");
 
             foreach (var t in topics) await FetchCached(wiki, pages, runDir, t.Title);
-            var (edges, dropped) = Curator.ComputeEdges(topics, pages);
+            var (candidateEdges, dropped) = Curator.ComputeEdges(topics, pages);
             foreach (var d in dropped) Console.WriteLine($"  dropped isolated topic \"{d}\".");
+            // Prune the (often near-complete) candidate graph to the most SIGNIFICANT links so the network reads
+            // as a structure, not a morass — LLM-ranked, ≈5 per sphere, kept connected (see Curator).
+            var edges = await Curator.SelectSignificantAsync(llm, topics, candidateEdges, pages, Curator.MaxLinksPerSphere);
             manifest.Topics = topics;
             manifest.Edges = edges;
             manifest.Save(runDir);
-            Console.WriteLine($"  graph: {topics.Count} topics, {edges.Count} edges.");
+            Console.WriteLine($"  graph: {topics.Count} topics, {candidateEdges.Count} candidate edges → {edges.Count} significant links kept.");
         }
         if (manifest.Topics.Count == 0) { Console.Error.WriteLine("No plan (run the plan stage first)."); return 3; }
 

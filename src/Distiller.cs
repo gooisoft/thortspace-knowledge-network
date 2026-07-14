@@ -37,7 +37,11 @@ public static class Distiller
             $"Rules: {MinGroups}-{MaxGroups} groups; 12-{MaxThorts} thorts TOTAL; every thort text unique and " +
             "readable on its own; 2-" + MaxPaths + " paths between group NAMES you defined; the alternative " +
             "redistributes THE SAME thort texts (every one of them) into 2 to " +
-            "as-many-groups-as-the-primary, on a different conceptual axis.";
+            "as-many-groups-as-the-primary, on a different conceptual axis. " +
+            "KEYWORDS: in EACH thort's text put a # immediately before the 1-3 MOST important, distinctive words " +
+            "(the topic-specific ones a reader should remember — never common/filler words), e.g. " +
+            "\"#Epistemology asks how we can gain #knowledge\". No space after the #; the #word still counts toward " +
+            "the character limit; the alternative must copy the thort texts VERBATIM including their # marks.";
         var user = new StringBuilder()
             .AppendLine($"Article: {page.Title}")
             .AppendLine($"Neighbouring topics in this sphere network (context only): {string.Join(", ", neighbourTitles)}")

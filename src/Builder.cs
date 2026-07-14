@@ -138,8 +138,9 @@ public static class Builder
         double hue = (((hash % 360) + 360) % 360);
         return (
             Hsv(hue, 0.14, 0.90),          // backdrop: pale, airy — light, never dark
-            Hsv(hue, 0.34, 0.88),          // sphere surface 1: pastel
-            Hsv(hue + 18, 0.28, 0.76));    // sphere surface 2: a distinct, slightly deeper pastel
+            Hsv(hue, 0.36, 0.90),          // sphere surface 1: pastel
+            Hsv(hue + 40, 0.48, 0.68));    // sphere surface 2: clearly distinct (bigger hue shift + deeper +
+                                           // more saturated) so the two-tone quadrants ALWAYS read, never same
     }
 
     private static (int r, int g, int b) Hsv(double h, double s, double v)
