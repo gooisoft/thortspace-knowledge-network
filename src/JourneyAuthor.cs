@@ -17,7 +17,7 @@ public static class JourneyAuthor
     {
         // The trip is created while the FIRST sphere of the route is open.
         var first = manifest.Built[story.Steps[0].Topic];
-        await engine.OpenSphereAsync(first.LocalId);
+        await CloudOp.WithTimeout(engine.OpenSphereAsync(first.LocalId), $"open \"{story.Steps[0].Topic}\" (journey)");
         var tripId = engine.CreateTrip(story.Name);
         var stepCount = 0;
         var openTopic = story.Steps[0].Topic;
@@ -34,7 +34,7 @@ public static class JourneyAuthor
                     arrangementId: null, focusGroupId: null, focusThortId: null,
                     name: $"To {step.Topic}", framing: "neighbourhood", networkSphereId: next.LocalId))
                     stepCount++;
-                await engine.OpenSphereAsync(next.LocalId);
+                await CloudOp.WithTimeout(engine.OpenSphereAsync(next.LocalId), $"open \"{step.Topic}\" (journey)");
                 openTopic = step.Topic;
             }
 

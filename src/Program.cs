@@ -133,13 +133,21 @@ internal static class Program
         }
 
         // ============================ stories: cross-network journeys ============================
-        if (stages.Contains("stories") && manifest.Journeys.Count == 0)
+        if (stages.Contains("stories") && manifest.Journeys.Count < journeyCount)
         {
             Console.WriteLine("\n== stories ==");
-            var stories = await Storyteller.ComposeAsync(llm, manifest, journeyCount);
-            if (stories.Count == 0) Console.Error.WriteLine("  the storyteller produced no valid journeys.");
-            foreach (var story in stories)
+            // Compose the journey scripts once and cache them, so a resume authors only the MISSING journeys
+            // instead of re-invoking the LLM and duplicating (or losing) work.
+            if (manifest.StoryPlan.Count == 0)
             {
+                manifest.StoryPlan = await Storyteller.ComposeAsync(llm, manifest, journeyCount);
+                manifest.Save(runDir);
+            }
+            if (manifest.StoryPlan.Count == 0) Console.Error.WriteLine("  the storyteller produced no valid journeys.");
+            var authored = manifest.Journeys.Select(j => j.Name).ToHashSet(StringComparer.Ordinal);
+            foreach (var story in manifest.StoryPlan)
+            {
+                if (authored.Contains(story.Name)) continue;                     // already authored on a prior run
                 Console.WriteLine($"  authoring \"{story.Name}\" ({story.Steps.Count} steps across " +
                                   $"{story.Steps.Select(s => s.Topic).Distinct().Count()} spheres)…");
                 manifest.Journeys.Add(await JourneyAuthor.AuthorAsync(engine!, manifest, story));

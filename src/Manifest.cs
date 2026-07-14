@@ -16,6 +16,8 @@ public sealed class Manifest
     public Dictionary<string, PageDistillation> Distillations { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, BuiltSphere> Built { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public List<Edge> LinkedEdges { get; set; } = new();
+    public List<string> ArrangedTitles { get; set; } = new();   // spheres whose links have been spread (resume marker)
+    public List<Story> StoryPlan { get; set; } = new();          // composed journey scripts (author-missing on resume)
     public List<BuiltJourney> Journeys { get; set; } = new();
 
     public bool IsLinked(Edge e) => LinkedEdges.Any(l => l.Is(e.A, e.B));
