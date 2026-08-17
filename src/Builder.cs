@@ -69,6 +69,35 @@ public static class Builder
             foreach (var t in g.Thorts)
                 engine.SetThortCategory(Guid.Parse(built.Thorts[t.Text]), t.Category);
 
+        // ---- the GROUP's own colour: groups carry categories too, colouring the boundary ring + name plate.
+        // This is the colour that reads at network scale, where thort text is far too small — so a viewer
+        // flying between spheres can see the SHAPE of each one before they can read any of it. We derive it
+        // rather than ask the LLM for another judgement: a group takes the category most of its thorts already
+        // carry, which is the honest one-word summary of what the cluster is made of. Ties go to whichever the
+        // vocabulary lists first, so a run is deterministic.
+        //
+        // ⚠️ A group's category rides its IDENTITY, not the arrangement — CreateArrangement below forks the
+        // groups keeping their GUIDs, so these rings keep their colour in the alternative arrangement too, where
+        // the same group objects are renamed and refilled along the other axis. That is the engine's rule, not a
+        // choice we can make here: the transaction log names a group only by GUID, so a per-arrangement group
+        // colour could not survive a replay. Read the alt rings as "what this ring held on the primary axis".
+        foreach (var g in d.Groups)
+        {
+            if (!built.PrimaryGroups.TryGetValue(g.Name, out var groupId)) continue;
+            var dominant = g.Thorts
+                .GroupBy(t => t.Category, StringComparer.OrdinalIgnoreCase)
+                .OrderByDescending(grp => grp.Count())
+                .ThenBy(grp => Array.FindIndex(Categories.Vocabulary,
+                    v => string.Equals(v, grp.Key, StringComparison.OrdinalIgnoreCase)))
+                .Select(grp => grp.Key)
+                .FirstOrDefault();
+            if (!string.IsNullOrEmpty(dominant))
+                engine.SetGroupCategory(Guid.Parse(groupId), dominant);
+        }
+        // The attribution group is scaffolding, not content — leave it on the theme's group colour so it stays
+        // visually quiet. ("none" is how you put a group back, and is a group's default state.)
+        engine.SetGroupCategory(sourceGroup, "none");
+
         // ---- typed relationships between groups, with strong colours on the first few types ----
         var colouredTypes = new List<string>();
         foreach (var p in d.Paths)
