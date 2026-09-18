@@ -20,7 +20,7 @@
          Restored from the feed in ../nuget.config (local until the package is published publicly). -->
     <!-- Group categories (SetGroupCategory) need a package built from an engine that HAS them, so this
          pin must not go below 1.6.900. Highest published when this was written: 1.6.912. -->
-    <PackageReference Include="Thortspace.Headless" Version="1.6.912" />
+    <PackageReference Include="Thortspace.Headless" Version="1.6.919" />
   </ItemGroup>
 
 </Project>
